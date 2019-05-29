@@ -7,6 +7,9 @@ const cors = require("cors");
 const morgan = require("morgan");
 const superagent = require("superagent");
 var nodemailer = require("nodemailer");
+const { writeData, authorize } = require("./index.js");
+const fs = require("fs");
+//   let data = ["Item", "Wheel"];
 
 console.log(process.env.SHEET_ID);
 console.log(process.env.MAIL);
@@ -29,52 +32,25 @@ router.use(function(req, res, next) {
   next(); // make sure we go to the next routes and don't stop here
 });
 
+router.post("/sheets", writeSheets)
 
-function testWrite () {
-  superagent.post(`https://sheets.googleapis.com/v4/spreadsheets/spreadsheetId/values:batchUpdate`)
- .send({
-  "valueInputOption": "USER_ENTERED",
-  "data": [
-    {
-      "range": "Sheet1!A1:A4",
-      "majorDimension": "COLUMNS",
-      "values": [
-        ["Item", "Wheel", "Door", "Engine"]
-      ]
-    },
-    {
-      "range": "Sheet1!B1:D2",
-      "majorDimension": "ROWS",
-      "values": [
-        ["Cost", "Stocked", "Ship Date"],
-        ["$20.50", "4", "3/1/2016"]
-      ]
-    }
-  ]
-})
-.then(results=>{
-  console.log('check you spead sheet', results)
-})
-.catch(err =>{
-  console.error(err);
-})
-}
+function writeSheets(req, res, next) {
 
-testWrite();
+  console.log('the body', req.body);
+  // the body { location: 'seattle', description: 'fdjkasl' }
+  let data = [req.body.location, req.body.description]
+  //   let data = ["Item", "Wheel"];
+  let results;
 
-
-
-router.post("/sheets", (req, res, next)=>{
-  let url = `https://script.google.com/macros/s/AKfycbyNLPGNDB-bO5kxpYf3CnsYQLCHANjhVVRn_AsnX0YO-MZ9n-k/exec`;
-
-  superagent.post(url)
-  .send(req.body)
-  .then(results =>{
-    console.log('results', results)
+  // Load client secrets from a local file.
+  fs.readFile("./credentials.json", (err, content) => {
+    if (err) return console.log("Error loading client secret file:", err);
+    // Authorize a client with credentials, then call the Google Sheets API.
+    //   authorize(JSON.parse(content), listMajors);
+    // authorize(JSON.parse(content), getData);
+    results = authorize(JSON.parse(content), writeData, data);
   })
-  .catch(err => console.error(err));
-  
-})
+};
 
 const root = `https://us20.api.mailchimp.com/3.0/lists/`;
 const mailchimpApiKey = process.env.MAIL;
@@ -87,7 +63,7 @@ router.get("/", (req, res, next) => {
 });
 
 router.get("/list", getAllSubscribers);
-function getAllSubscribers (req, res, next) {
+function getAllSubscribers(req, res, next) {
   superagent
     .get(
       `https://any:${mailchimpApiKey}@us20.api.mailchimp.com/3.0/lists/e7d3644021/members`
@@ -100,10 +76,10 @@ function getAllSubscribers (req, res, next) {
         console.log("the lists", result.body);
       }
     });
-};
+}
 
 router.post("/sub", postNewSubscriber);
-function postNewSubscriber (req, res, next){
+function postNewSubscriber(req, res, next) {
   //check that the user was able to answer the questions
   if (req.body.message === "white") {
     superagent
@@ -134,9 +110,7 @@ function postNewSubscriber (req, res, next){
         }
       });
   }
-};
-
-
+}
 
 router.post("/sightings", postNewSighting);
 
@@ -148,7 +122,7 @@ var transporter = nodemailer.createTransport({
   }
 });
 
-function postNewSighting (req, res, next) {
+function postNewSighting(req, res, next) {
   var name = req.body.name;
   var from = req.body.from;
   var message = req.body.message;
@@ -182,7 +156,7 @@ function postNewSighting (req, res, next) {
       res.redirect("/");
     }
   });
-};
+}
 
 let isRunning = false;
 

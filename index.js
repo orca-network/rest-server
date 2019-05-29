@@ -1,13 +1,10 @@
 const fs = require("fs");
 const readline = require("readline");
 const { google } = require("googleapis");
-const superagent = require("superagent");
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
-// The file token.json stores the user's access and refresh tokens, and is
-// created automatically when the authorization flow completes for the first
-// time.
+
 const TOKEN_PATH = "token.json";
 
 // Load client secrets from a local file.
@@ -15,8 +12,8 @@ fs.readFile("./credentials.json", (err, content) => {
   if (err) return console.log("Error loading client secret file:", err);
   // Authorize a client with credentials, then call the Google Sheets API.
   //   authorize(JSON.parse(content), listMajors);
-  authorize(JSON.parse(content), getData);
-  authorize(JSON.parse(content), writeData);
+//   authorize(JSON.parse(content), getData);
+//   authorize(JSON.parse(content), writeData);
 });
 
 /**
@@ -25,7 +22,7 @@ fs.readFile("./credentials.json", (err, content) => {
  * @param {Object} credentials The authorization client credentials.
  * @param {function} callback The callback to call with the authorized client.
  */
-function authorize(credentials, callback) {
+function authorize(credentials, callback, data) {
   //   const {client_secret, client_id, redirect_uris} = credentials.installed;
   const { client_secret, client_id, redirect_uris } = credentials.web;
   console.log(client_secret, client_id, redirect_uris);
@@ -36,12 +33,15 @@ function authorize(credentials, callback) {
     redirect_uris[0]
   );
 
+  let results;
   // Check if we have previously stored a token.
   fs.readFile(TOKEN_PATH, (err, token) => {
     if (err) return getNewToken(oAuth2Client, callback);
     oAuth2Client.setCredentials(JSON.parse(token));
-    callback(oAuth2Client);
+    results = callback(oAuth2Client, data);
   });
+  console.log('the callback results', results);
+  return results;
 }
 
 /**
@@ -112,7 +112,7 @@ function getData(auth) {
   sheets.spreadsheets.values.get(
     {
       spreadsheetId: "1wKPEZu_Sr1LuUZ-LTtNNswvEnV80ishZy7XwatpCkr8",
-      range: "Sheet1!A1:B"
+      range: "sightings!A1:B"
     },
     (err, res) => {
       if (err) return console.log("The API returned an error: " + err);
@@ -131,15 +131,14 @@ function getData(auth) {
 
 
 
-function writeData(auth) {
+async function writeData(auth, data) {
   const sheets = google.sheets({ version: "v4", auth });
-  let data = ["Item", "Wheel"];
-
+//   let data = ["Item", "Wheel"];
   var request = {
     spreadsheetId: "1wKPEZu_Sr1LuUZ-LTtNNswvEnV80ishZy7XwatpCkr8",
 
     //provide the range to which the row data will be appended
-    range: "Sheet1!A1:B",
+    range: "sightings!A1:B",
     valueInputOption: "USER_ENTERED", 
     insertDataOption: "INSERT_ROWS",
     resource: 
@@ -155,6 +154,7 @@ function writeData(auth) {
     auth: auth
   };
 
+  let results;
   sheets.spreadsheets.values.append(request, function(err, response) {
     if (err) {
       console.error(err);
@@ -162,6 +162,12 @@ function writeData(auth) {
     }
     // TODO: Change code below to process the `response` object:
     console.log(JSON.stringify(response, null, 2));
+    return JSON.stringify(response, null, 2);
   });
+
+  console.log('results in callback', results)
+  return results;
 }
+
+module.exports = { writeData, authorize };
 
